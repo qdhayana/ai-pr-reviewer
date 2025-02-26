@@ -1,7 +1,10 @@
 # CodeRabbit Pro
 
-This is an old version of [CodeRabbit](http://coderabbit.ai) and is now in the maintenance mode.
-We recommend installing the Pro version from [CodeRabbit](http://coderabbit.ai). The Pro version is a total redesign and offers significantly better reviews that learn from your usage and improve over time. CodeRabbit Pro is free for open source projects. 
+This is an old version of [CodeRabbit](http://coderabbit.ai) and is now in the
+maintenance mode. We recommend installing the Pro version from
+[CodeRabbit](http://coderabbit.ai). The Pro version is a total redesign and
+offers significantly better reviews that learn from your usage and improve over
+time. CodeRabbit Pro is free for open source projects.
 
 [![Discord](https://img.shields.io/badge/Join%20us%20on-Discord-blue?logo=discord&style=flat-square)](https://discord.gg/GsXnASn26c)
 
@@ -58,7 +61,6 @@ FAQs, you can refer to the sections below.
 - [Contribute](#contribute)
 - [FAQs](#faqs)
 
-
 ## Install instructions
 
 `ai-pr-reviewer` runs as a GitHub Action. Add the below file to your repository
@@ -113,9 +115,9 @@ jobs:
 - `OPENAI_API_ORG`: (optional) Use this to use the specified organization with
   OpenAI API if you have multiple. Please add this key to your GitHub Action
   secrets.
-- `OPENROUTER_API_KEY`: Use this to authenticate with OpenRouter API instead of OpenAI.
-  You can get one [here](https://openrouter.ai/keys). Please add this key to
-  your GitHub Action secrets.
+- `OPENROUTER_API_KEY`: Use this to authenticate with OpenRouter API instead of
+  OpenAI. You can get one [here](https://openrouter.ai/keys). Please add this
+  key to your GitHub Action secrets.
 
 ### Models
 
@@ -131,8 +133,8 @@ day for a 20 developer team with `gpt-4` based review and commenting.
 
 #### Using OpenRouter
 
-OpenRouter allows you to access a variety of models from different providers through a single API.
-To use OpenRouter:
+OpenRouter allows you to access a variety of models from different providers
+through a single API. To use OpenRouter:
 
 1. Set `use_openrouter: true` in your workflow configuration
 2. Provide an `OPENROUTER_API_KEY` environment variable
@@ -141,11 +143,44 @@ To use OpenRouter:
    - `openai_heavy_model: openai/gpt-4`
 
 Available models include:
-- OpenAI models: `openai/gpt-3.5-turbo`, `openai/gpt-4`, etc.
-- Anthropic models: `anthropic/claude-2`, `anthropic/claude-instant-1`, etc.
-- And many others from providers like Cohere, AI21, etc.
 
-See the [OpenRouter documentation](https://openrouter.ai/docs) for a complete list of available models.
+**OpenAI Models:**
+
+- Latest models: `openai/gpt-4o`, `openai/gpt-4-turbo`
+- Standard models: `openai/gpt-4`, `openai/gpt-3.5-turbo`
+
+**Anthropic Claude Models:**
+
+- Latest models: `anthropic/claude-3.7-sonnet`, `anthropic/claude-3.5-sonnet`
+- Other Claude models: `anthropic/claude-3-opus`, `anthropic/claude-3-sonnet`,
+  `anthropic/claude-3-haiku`
+
+**Deepseek Models:**
+
+- `deepseek/deepseek-chat` (also known as deepseek-v3)
+- `deepseek/deepseek-reasoning` (also known as deepseek-r1)
+- `deepseek/deepseek-coder`
+
+**Mistral Models:**
+
+- `mistral/mistral-large-2`, `mistral/mistral-medium`, `mistral/mistral-small`
+- `mistral/o3-mini`
+
+Example configuration for using Claude 3.5 Sonnet:
+
+```yaml
+- uses: coderabbitai/ai-pr-reviewer@latest
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+  with:
+    use_openrouter: true
+    openai_light_model: anthropic/claude-3-haiku
+    openai_heavy_model: anthropic/claude-3.5-sonnet
+```
+
+See the [OpenRouter documentation](https://openrouter.ai/docs) for a complete
+list of available models and their capabilities.
 
 ### Prompts & Configuration
 
