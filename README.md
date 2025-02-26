@@ -90,25 +90,36 @@ jobs:
       - uses: coderabbitai/ai-pr-reviewer@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Use either OpenAI or OpenRouter for API access
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         with:
           debug: false
           review_simple_changes: false
           review_comment_lgtm: false
+          # Uncomment to use OpenRouter instead of OpenAI directly
+          # use_openrouter: true
+          # openai_light_model: openai/gpt-3.5-turbo
+          # openai_heavy_model: openai/gpt-4
 ```
 
 #### Environment variables
 
 - `GITHUB_TOKEN`: This should already be available to the GitHub Action
   environment. This is used to add comments to the pull request.
-- `OPENAI_API_KEY`: use this to authenticate with OpenAI API. You can get one
+- `OPENAI_API_KEY`: Use this to authenticate with OpenAI API. You can get one
   [here](https://platform.openai.com/account/api-keys). Please add this key to
   your GitHub Action secrets.
-- `OPENAI_API_ORG`: (optional) use this to use the specified organization with
+- `OPENAI_API_ORG`: (optional) Use this to use the specified organization with
   OpenAI API if you have multiple. Please add this key to your GitHub Action
   secrets.
+- `OPENROUTER_API_KEY`: Use this to authenticate with OpenRouter API instead of OpenAI.
+  You can get one [here](https://openrouter.ai/keys). Please add this key to
+  your GitHub Action secrets.
 
-### Models: `gpt-4` and `gpt-3.5-turbo`
+### Models
+
+#### Using OpenAI directly
 
 Recommend using `gpt-3.5-turbo` for lighter tasks such as summarizing the
 changes (`openai_light_model` in configuration) and `gpt-4` for more complex
@@ -117,6 +128,24 @@ review and commenting tasks (`openai_heavy_model` in configuration).
 Costs: `gpt-3.5-turbo` is dirt cheap. `gpt-4` is orders of magnitude more
 expensive, but the results are vastly superior. We are typically spending $20 a
 day for a 20 developer team with `gpt-4` based review and commenting.
+
+#### Using OpenRouter
+
+OpenRouter allows you to access a variety of models from different providers through a single API.
+To use OpenRouter:
+
+1. Set `use_openrouter: true` in your workflow configuration
+2. Provide an `OPENROUTER_API_KEY` environment variable
+3. Specify the model using the provider/model format:
+   - `openai_light_model: openai/gpt-3.5-turbo`
+   - `openai_heavy_model: openai/gpt-4`
+
+Available models include:
+- OpenAI models: `openai/gpt-3.5-turbo`, `openai/gpt-4`, etc.
+- Anthropic models: `anthropic/claude-2`, `anthropic/claude-instant-1`, etc.
+- And many others from providers like Cohere, AI21, etc.
+
+See the [OpenRouter documentation](https://openrouter.ai/docs) for a complete list of available models.
 
 ### Prompts & Configuration
 

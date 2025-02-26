@@ -148,14 +148,26 @@ inputs:
     required: false
     description: 'The url of the openai api interface.'
     default: 'https://api.openai.com/v1'
+  use_openrouter:
+    required: false
+    description: 'Whether to use OpenRouter instead of OpenAI directly.'
+    default: 'false'
+  openrouter_api_key:
+    required: false
+    description: 'API key for OpenRouter. Required if use_openrouter is true.'
+    default: ''
+  openrouter_base_url:
+    required: false
+    description: 'The url of the OpenRouter api interface.'
+    default: 'https://openrouter.ai/api/v1'
   openai_light_model:
     required: false
     description:
-      'Model to use for simple tasks like summarizing diff on a file.'
+      'Model to use for simple tasks like summarizing diff on a file. When using OpenRouter, specify the full model name (e.g., openai/gpt-3.5-turbo).'
     default: 'gpt-3.5-turbo'
   openai_heavy_model:
     required: false
-    description: 'Model to use for complex tasks such as code reviews.'
+    description: 'Model to use for complex tasks such as code reviews. When using OpenRouter, specify the full model name (e.g., openai/gpt-4).'
     default: 'gpt-4'
   openai_model_temperature:
     required: false
