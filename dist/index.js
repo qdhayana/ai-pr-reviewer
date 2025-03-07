@@ -1789,7 +1789,7 @@ const supportedSchemas = new Set(['data:', 'http:', 'https:']);
  * @param   {*} [options_] - Fetch options
  * @return  {Promise<import('./response').default>}
  */
-async function fetch(url, options_) {
+async function src_fetch(url, options_) {
 	return new Promise((resolve, reject) => {
 		// Build request object
 		const request = new Request(url, options_);
@@ -1977,7 +1977,7 @@ async function fetch(url, options_) {
 						}
 
 						// HTTP-redirect fetch step 15
-						resolve(fetch(new Request(locationURL, requestOptions)));
+						resolve(src_fetch(new Request(locationURL, requestOptions)));
 						finalize();
 						return;
 					}
@@ -2164,7 +2164,7 @@ function fixResponseChunkedTransferBadEnding(request, errorCallback) {
 // fetch-polyfill.js
 
 if (!globalThis.fetch) {
-    globalThis.fetch = fetch;
+    globalThis.fetch = src_fetch;
     globalThis.Headers = Headers;
     globalThis.Request = Request;
     globalThis.Response = Response;
@@ -3788,14 +3788,51 @@ class Bot {
     options;
     constructor(options, openaiOptions) {
         this.options = options;
-        if (process.env.OPENAI_API_KEY) {
-            const currentDate = new Date().toISOString().split('T')[0];
-            const systemMessage = `${options.systemMessage} 
+        const currentDate = new Date().toISOString().split('T')[0];
+        const systemMessage = `${options.systemMessage} 
 Knowledge cutoff: ${openaiOptions.tokenLimits.knowledgeCutOff}
 Current date: ${currentDate}
 
 IMPORTANT: Entire response must be in the language with ISO code: ${options.language}
 `;
+        if (options.useOpenRouter &&
+            (options.openRouterApiKey || process.env.OPENROUTER_API_KEY)) {
+            // Use OpenRouter
+            const apiKey = options.openRouterApiKey || process.env.OPENROUTER_API_KEY;
+            if (!apiKey) {
+                throw new Error('OpenRouter API key is required when use_openrouter is true');
+            }
+            // For OpenRouter, we need to add custom headers
+            // Since ChatGPTAPI doesn't support headers in completionParams,
+            // we'll need to use a custom fetch function to add the headers
+            const customFetchFunction = (input, init) => {
+                // Add OpenRouter required headers
+                if (init && init.headers) {
+                    const headers = {
+                        ...init.headers,
+                        'HTTP-Referer': 'https://github.com/coderabbitai/ai-pr-reviewer',
+                        'X-Title': 'AI PR Reviewer'
+                    };
+                    return fetch(input, { ...init, headers });
+                }
+                return fetch(input, init);
+            };
+            this.api = new ChatGPTAPI({
+                apiBaseUrl: options.openRouterBaseUrl,
+                systemMessage,
+                apiKey,
+                debug: options.debug,
+                maxModelTokens: openaiOptions.tokenLimits.maxTokens,
+                maxResponseTokens: openaiOptions.tokenLimits.responseTokens,
+                completionParams: {
+                    temperature: options.openaiModelTemperature,
+                    model: openaiOptions.model
+                },
+                fetch: customFetchFunction
+            });
+        }
+        else if (process.env.OPENAI_API_KEY) {
+            // Use OpenAI
             this.api = new ChatGPTAPI({
                 apiBaseUrl: options.apiBaseUrl,
                 systemMessage,
@@ -3811,7 +3848,7 @@ IMPORTANT: Entire response must be in the language with ISO code: ${options.lang
             });
         }
         else {
-            const err = "Unable to initialize the OpenAI API, both 'OPENAI_API_KEY' environment variable are not available";
+            const err = "Unable to initialize the API, neither 'OPENAI_API_KEY' nor 'OPENROUTER_API_KEY' environment variables are available";
             throw new Error(err);
         }
     }
@@ -3849,29 +3886,33 @@ IMPORTANT: Entire response must be in the language with ISO code: ${options.lang
             }
             catch (e) {
                 if (e instanceof ChatGPTError) {
-                    (0,core.info)(`response: ${response}, failed to send message to openai: ${e}, backtrace: ${e.stack}`);
+                    const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI';
+                    (0,core.info)(`response: ${response}, failed to send message to ${apiType}: ${e}, backtrace: ${e.stack}`);
                 }
             }
             const end = Date.now();
             (0,core.info)(`response: ${JSON.stringify(response)}`);
-            (0,core.info)(`openai sendMessage (including retries) response time: ${end - start} ms`);
+            const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI';
+            (0,core.info)(`${apiType} sendMessage (including retries) response time: ${end - start} ms`);
         }
         else {
-            (0,core.setFailed)('The OpenAI API is not initialized');
+            (0,core.setFailed)('The API is not initialized');
         }
         let responseText = '';
         if (response != null) {
             responseText = response.text;
         }
         else {
-            (0,core.warning)('openai response is null');
+            const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI';
+            (0,core.warning)(`${apiType} response is null`);
         }
         // remove the prefix "with " in the response
         if (responseText.startsWith('with ')) {
             responseText = responseText.substring(5);
         }
         if (this.options.debug) {
-            (0,core.info)(`openai responses: ${responseText}`);
+            const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI';
+            (0,core.info)(`${apiType} responses: ${responseText}`);
         }
         const newIds = {
             parentMessageId: response?.id,
@@ -4636,7 +4677,7 @@ __nccwpck_require__.r(__webpack_exports__);
 
 
 async function run() {
-    const options = new _options__WEBPACK_IMPORTED_MODULE_2__/* .Options */ .Ei((0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('debug'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('disable_review'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('disable_release_notes'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('max_files'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('review_simple_changes'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('review_comment_lgtm'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getMultilineInput)('path_filters'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('system_message'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_light_model'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_heavy_model'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_model_temperature'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_retries'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_timeout_ms'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_concurrency_limit'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('github_concurrency_limit'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_base_url'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('language'));
+    const options = new _options__WEBPACK_IMPORTED_MODULE_2__/* .Options */ .Ei((0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('debug'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('disable_review'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('disable_release_notes'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('max_files'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('review_simple_changes'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('review_comment_lgtm'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getMultilineInput)('path_filters'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('system_message'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_light_model'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_heavy_model'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_model_temperature'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_retries'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_timeout_ms'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_concurrency_limit'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('github_concurrency_limit'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openai_base_url'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('language'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getBooleanInput)('use_openrouter'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openrouter_api_key'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('openrouter_base_url'));
     // print options
     options.print();
     const prompts = new _prompts__WEBPACK_IMPORTED_MODULE_5__/* .Prompts */ .j((0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('summarize'), (0,_actions_core__WEBPACK_IMPORTED_MODULE_0__.getInput)('summarize_release_notes'));
@@ -6524,19 +6565,109 @@ class TokenLimits {
     responseTokens;
     knowledgeCutOff;
     constructor(model = 'gpt-3.5-turbo') {
-        this.knowledgeCutOff = '2021-09-01';
-        if (model === 'gpt-4-32k') {
+        this.knowledgeCutOff = '2023-04-01'; // Updated knowledge cutoff date
+        // Extract the base model name from OpenRouter format (e.g., "openai/gpt-4" -> "gpt-4")
+        const baseModel = model.includes('/') ? model.split('/')[1] : model;
+        // Modern OpenAI models
+        if (baseModel === 'gpt-4o' || baseModel === 'gpt-4o-2024-05-13') {
+            this.maxTokens = 128000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'gpt-4-turbo' ||
+            baseModel === 'gpt-4-turbo-2024-04-09' ||
+            baseModel === 'gpt-4-turbo-preview') {
+            this.maxTokens = 128000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'gpt-4-vision-preview' ||
+            baseModel === 'gpt-4-vision') {
+            this.maxTokens = 128000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'gpt-4-32k' ||
+            baseModel === 'gpt-4-32k-0314' ||
+            baseModel === 'gpt-4-32k-0613') {
             this.maxTokens = 32600;
             this.responseTokens = 4000;
         }
-        else if (model === 'gpt-3.5-turbo-16k') {
+        else if (baseModel === 'gpt-3.5-turbo-16k' ||
+            baseModel === 'gpt-3.5-turbo-16k-0613') {
             this.maxTokens = 16300;
             this.responseTokens = 3000;
         }
-        else if (model === 'gpt-4') {
+        else if (baseModel === 'gpt-4' ||
+            baseModel === 'gpt-4-0314' ||
+            baseModel === 'gpt-4-0613') {
             this.maxTokens = 8000;
             this.responseTokens = 2000;
         }
+        // Modern Claude models
+        else if (baseModel === 'claude-3-opus-20240229' ||
+            baseModel === 'claude-3-opus') {
+            this.maxTokens = 200000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'claude-3.5-sonnet' ||
+            baseModel === 'claude-3-5-sonnet-20240620') {
+            this.maxTokens = 200000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'claude-3.7-sonnet' ||
+            baseModel === 'claude-3-7-sonnet') {
+            this.maxTokens = 200000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'claude-3-sonnet-20240229' ||
+            baseModel === 'claude-3-sonnet') {
+            this.maxTokens = 200000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'claude-3-haiku-20240307' ||
+            baseModel === 'claude-3-haiku') {
+            this.maxTokens = 200000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'claude-2' ||
+            baseModel === 'claude-2.0' ||
+            baseModel === 'claude-2.1') {
+            this.maxTokens = 100000;
+            this.responseTokens = 2000;
+        }
+        else if (baseModel === 'claude-instant-1' ||
+            baseModel === 'claude-instant-1.2') {
+            this.maxTokens = 100000;
+            this.responseTokens = 2000;
+        }
+        // Deepseek models
+        else if (baseModel === 'deepseek-chat' ||
+            baseModel === 'deepseek-v3' ||
+            baseModel === 'deepseek-coder') {
+            this.maxTokens = 32000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'deepseek-reasoning' ||
+            baseModel === 'deepseek-r1') {
+            this.maxTokens = 32000;
+            this.responseTokens = 4096;
+        }
+        // Mistral models
+        else if (baseModel === 'mistral-large-2' ||
+            baseModel === 'mistral-large-latest') {
+            this.maxTokens = 32000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'mistral-medium' ||
+            baseModel === 'mistral-medium-latest') {
+            this.maxTokens = 32000;
+            this.responseTokens = 4096;
+        }
+        else if (baseModel === 'mistral-small' ||
+            baseModel === 'mistral-small-latest' ||
+            baseModel === 'o3-mini') {
+            this.maxTokens = 32000;
+            this.responseTokens = 4096;
+        }
+        // Default for other models
         else {
             this.maxTokens = 4000;
             this.responseTokens = 1000;
@@ -6573,7 +6704,10 @@ class Options {
     heavyTokenLimits;
     apiBaseUrl;
     language;
-    constructor(debug, disableReview, disableReleaseNotes, maxFiles = '0', reviewSimpleChanges = false, reviewCommentLGTM = false, pathFilters = null, systemMessage = '', openaiLightModel = 'gpt-3.5-turbo', openaiHeavyModel = 'gpt-3.5-turbo', openaiModelTemperature = '0.0', openaiRetries = '3', openaiTimeoutMS = '120000', openaiConcurrencyLimit = '6', githubConcurrencyLimit = '6', apiBaseUrl = 'https://api.openai.com/v1', language = 'en-US') {
+    useOpenRouter;
+    openRouterApiKey;
+    openRouterBaseUrl;
+    constructor(debug, disableReview, disableReleaseNotes, maxFiles = '0', reviewSimpleChanges = false, reviewCommentLGTM = false, pathFilters = null, systemMessage = '', openaiLightModel = 'gpt-3.5-turbo', openaiHeavyModel = 'gpt-3.5-turbo', openaiModelTemperature = '0.0', openaiRetries = '3', openaiTimeoutMS = '120000', openaiConcurrencyLimit = '6', githubConcurrencyLimit = '6', apiBaseUrl = 'https://api.openai.com/v1', language = 'en-US', useOpenRouter = false, openRouterApiKey = '', openRouterBaseUrl = 'https://openrouter.ai/api/v1') {
         this.debug = debug;
         this.disableReview = disableReview;
         this.disableReleaseNotes = disableReleaseNotes;
@@ -6593,6 +6727,9 @@ class Options {
         this.heavyTokenLimits = new TokenLimits(openaiHeavyModel);
         this.apiBaseUrl = apiBaseUrl;
         this.language = language;
+        this.useOpenRouter = useOpenRouter;
+        this.openRouterApiKey = openRouterApiKey;
+        this.openRouterBaseUrl = openRouterBaseUrl;
     }
     // print all options using core.info
     print() {
@@ -6615,6 +6752,10 @@ class Options {
         (0,core.info)(`review_token_limits: ${this.heavyTokenLimits.string()}`);
         (0,core.info)(`api_base_url: ${this.apiBaseUrl}`);
         (0,core.info)(`language: ${this.language}`);
+        (0,core.info)(`use_openrouter: ${this.useOpenRouter}`);
+        (0,core.info)(`openrouter_base_url: ${this.openRouterBaseUrl}`);
+        // Don't log the API key for security reasons
+        (0,core.info)(`openrouter_api_key: ${this.openRouterApiKey ? '***' : 'not set'}`);
     }
     checkPath(path) {
         const ok = this.pathFilters.check(path);

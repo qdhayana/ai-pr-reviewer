@@ -29,7 +29,10 @@ async function run(): Promise<void> {
     getInput('openai_concurrency_limit'),
     getInput('github_concurrency_limit'),
     getInput('openai_base_url'),
-    getInput('language')
+    getInput('language'),
+    getBooleanInput('use_openrouter'),
+    getInput('openrouter_api_key'),
+    getInput('openrouter_base_url')
   )
 
   // print options

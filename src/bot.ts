@@ -24,15 +24,61 @@ export class Bot {
 
   constructor(options: Options, openaiOptions: OpenAIOptions) {
     this.options = options
-    if (process.env.OPENAI_API_KEY) {
-      const currentDate = new Date().toISOString().split('T')[0]
-      const systemMessage = `${options.systemMessage} 
+    const currentDate = new Date().toISOString().split('T')[0]
+    const systemMessage = `${options.systemMessage} 
 Knowledge cutoff: ${openaiOptions.tokenLimits.knowledgeCutOff}
 Current date: ${currentDate}
 
 IMPORTANT: Entire response must be in the language with ISO code: ${options.language}
 `
 
+    if (
+      options.useOpenRouter &&
+      (options.openRouterApiKey || process.env.OPENROUTER_API_KEY)
+    ) {
+      // Use OpenRouter
+      const apiKey = options.openRouterApiKey || process.env.OPENROUTER_API_KEY
+
+      if (!apiKey) {
+        throw new Error(
+          'OpenRouter API key is required when use_openrouter is true'
+        )
+      }
+
+      // For OpenRouter, we need to add custom headers
+      // Since ChatGPTAPI doesn't support headers in completionParams,
+      // we'll need to use a custom fetch function to add the headers
+      const customFetchFunction = (
+        input: RequestInfo | URL,
+        init?: RequestInit
+      ): Promise<Response> => {
+        // Add OpenRouter required headers
+        if (init && init.headers) {
+          const headers = {
+            ...init.headers,
+            'HTTP-Referer': 'https://github.com/coderabbitai/ai-pr-reviewer',
+            'X-Title': 'AI PR Reviewer'
+          }
+          return fetch(input, {...init, headers})
+        }
+        return fetch(input, init)
+      }
+
+      this.api = new ChatGPTAPI({
+        apiBaseUrl: options.openRouterBaseUrl,
+        systemMessage,
+        apiKey,
+        debug: options.debug,
+        maxModelTokens: openaiOptions.tokenLimits.maxTokens,
+        maxResponseTokens: openaiOptions.tokenLimits.responseTokens,
+        completionParams: {
+          temperature: options.openaiModelTemperature,
+          model: openaiOptions.model
+        },
+        fetch: customFetchFunction
+      })
+    } else if (process.env.OPENAI_API_KEY) {
+      // Use OpenAI
       this.api = new ChatGPTAPI({
         apiBaseUrl: options.apiBaseUrl,
         systemMessage,
@@ -48,7 +94,7 @@ IMPORTANT: Entire response must be in the language with ISO code: ${options.lang
       })
     } else {
       const err =
-        "Unable to initialize the OpenAI API, both 'OPENAI_API_KEY' environment variable are not available"
+        "Unable to initialize the API, neither 'OPENAI_API_KEY' nor 'OPENROUTER_API_KEY' environment variables are available"
       throw new Error(err)
     }
   }
@@ -91,33 +137,37 @@ IMPORTANT: Entire response must be in the language with ISO code: ${options.lang
         })
       } catch (e: unknown) {
         if (e instanceof ChatGPTError) {
+          const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI'
           info(
-            `response: ${response}, failed to send message to openai: ${e}, backtrace: ${e.stack}`
+            `response: ${response}, failed to send message to ${apiType}: ${e}, backtrace: ${e.stack}`
           )
         }
       }
       const end = Date.now()
       info(`response: ${JSON.stringify(response)}`)
+      const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI'
       info(
-        `openai sendMessage (including retries) response time: ${
+        `${apiType} sendMessage (including retries) response time: ${
           end - start
         } ms`
       )
     } else {
-      setFailed('The OpenAI API is not initialized')
+      setFailed('The API is not initialized')
     }
     let responseText = ''
     if (response != null) {
       responseText = response.text
     } else {
-      warning('openai response is null')
+      const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI'
+      warning(`${apiType} response is null`)
     }
     // remove the prefix "with " in the response
     if (responseText.startsWith('with ')) {
       responseText = responseText.substring(5)
     }
     if (this.options.debug) {
-      info(`openai responses: ${responseText}`)
+      const apiType = this.options.useOpenRouter ? 'OpenRouter' : 'OpenAI'
+      info(`${apiType} responses: ${responseText}`)
     }
     const newIds: Ids = {
       parentMessageId: response?.id,

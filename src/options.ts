@@ -22,6 +22,9 @@ export class Options {
   heavyTokenLimits: TokenLimits
   apiBaseUrl: string
   language: string
+  useOpenRouter: boolean
+  openRouterApiKey: string
+  openRouterBaseUrl: string
 
   constructor(
     debug: boolean,
@@ -40,7 +43,10 @@ export class Options {
     openaiConcurrencyLimit = '6',
     githubConcurrencyLimit = '6',
     apiBaseUrl = 'https://api.openai.com/v1',
-    language = 'en-US'
+    language = 'en-US',
+    useOpenRouter = false,
+    openRouterApiKey = '',
+    openRouterBaseUrl = 'https://openrouter.ai/api/v1'
   ) {
     this.debug = debug
     this.disableReview = disableReview
@@ -61,6 +67,9 @@ export class Options {
     this.heavyTokenLimits = new TokenLimits(openaiHeavyModel)
     this.apiBaseUrl = apiBaseUrl
     this.language = language
+    this.useOpenRouter = useOpenRouter
+    this.openRouterApiKey = openRouterApiKey
+    this.openRouterBaseUrl = openRouterBaseUrl
   }
 
   // print all options using core.info
@@ -84,6 +93,10 @@ export class Options {
     info(`review_token_limits: ${this.heavyTokenLimits.string()}`)
     info(`api_base_url: ${this.apiBaseUrl}`)
     info(`language: ${this.language}`)
+    info(`use_openrouter: ${this.useOpenRouter}`)
+    info(`openrouter_base_url: ${this.openRouterBaseUrl}`)
+    // Don't log the API key for security reasons
+    info(`openrouter_api_key: ${this.openRouterApiKey ? '***' : 'not set'}`)
   }
 
   checkPath(path: string): boolean {
